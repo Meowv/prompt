@@ -73,7 +73,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Meowv/prompt/main/prom
 
 1. 打开 Codex++ 的用户脚本管理页面，刷新本地脚本列表，确认用户脚本功能及 `prompt-enhancement.js` 已启用。
 2. 执行「重新加载用户脚本」，或重新启动 Codex++ / Codex Desktop。
-3. 打开可输入消息的 Codex 对话，确认输入框附近出现「增强提示词」按钮。
+3. 打开可输入消息的 Codex 对话，输入文字后确认输入框底部出现「增强提示词」按钮。空白草稿时隐藏；上一轮对话仍在执行时也可使用。
 
 更新时可再次运行对应的安装命令覆盖脚本，再重新加载用户脚本。若已下载仓库，也可将其中的 `prompt-enhancement.js` 复制到用户脚本目录。
 
