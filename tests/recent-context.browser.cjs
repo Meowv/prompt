@@ -213,7 +213,15 @@ test("对话上下文：完整脚本配置、采集与请求保护", async (t) =
               assert.equal(after.x - before.x, 14);
               assert.ok(after.x + after.width <= track.x + track.width - 3);
               assert.equal(await toggle.isChecked(), true);
-              await page.getByLabel("上文发送说明").click();
+              const help = page.getByLabel("上文发送说明");
+              const description = page.locator("#axpe-context-description");
+              assert.equal(await description.isVisible(), false);
+              await help.hover();
+              assert.equal(await description.isVisible(), true);
+              await help.click();
+              await toggle.hover();
+              assert.equal(await description.isVisible(), false);
+              await help.hover();
               const bounds = await page
                 .locator("#axpe-context-description")
                 .boundingBox();
