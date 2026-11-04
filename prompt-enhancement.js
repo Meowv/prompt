@@ -846,7 +846,9 @@ Do not reproduce history unless needed to clarify the draft.`
     );
   }
   const host = mark(make("div", "", "axpe-bar"));
-  host.hidden = true;
+  host.dataset.axpeEmpty = "true";
+  host.inert = true;
+  host.setAttribute("aria-hidden", "true");
   const main = button("", () => {
     if (job) job.cancel();
     else enhance();
@@ -922,8 +924,10 @@ Do not reproduce history unless needed to clarify the draft.`
         ? rect.bottom + 8
         : rect.top - box.height - 8;
     const top = Math.max(8, Math.min(preferred, innerHeight - box.height - 8));
-    tooltip.style.left = `${Math.max(8, Math.min(rect.left + (rect.width - box.width) / 2, innerWidth - box.width - 8))}px`;
-    tooltip.style.top = `${top}px`;
+    const left = `${Math.max(8, Math.min(rect.left + (rect.width - box.width) / 2, innerWidth - box.width - 8))}px`;
+    const topValue = `${top}px`;
+    if (tooltip.style.left !== left) tooltip.style.left = left;
+    if (tooltip.style.top !== topValue) tooltip.style.top = topValue;
   }
   main.addEventListener("pointerenter", showTooltip);
   main.addEventListener("pointerleave", hideTooltip);
@@ -972,24 +976,40 @@ Do not reproduce history unless needed to clarify the draft.`
     position();
   }
   function update() {
+    // 输入法组合输入期间保留当前位置，避免 innerText 和几何读取触发同步布局。
+    if (composing) {
+      if (main.getAttribute("aria-disabled") !== "true")
+        main.setAttribute("aria-disabled", "true");
+      return;
+    }
+    const currentText = text(editor);
     // 显隐只取决于草稿内容；增强请求期间保留取消入口。
-    host.hidden = !job && !text(editor).trim();
+    const hidden = !job && !currentText.trim();
+    if (host.dataset.axpeEmpty !== String(hidden)) {
+      host.dataset.axpeEmpty = String(hidden);
+      host.inert = hidden;
+      host.setAttribute("aria-hidden", String(hidden));
+    }
     const record = drafts.get(session());
     const canRestore = !!(
       record &&
       editor &&
-      record.result === text(editor) &&
+      record.result === currentText &&
       record.revision === version
     );
-    restore.hidden = !canRestore;
-    restore.disabled = !!job || pendingWrite;
-    caption.textContent = job ? "取消增强" : "增强提示词";
-    main.classList.toggle("axpe-loading", !!job);
-    main.setAttribute("aria-busy", String(!!job));
+    if (restore.hidden !== !canRestore) restore.hidden = !canRestore;
+    const restoreDisabled = !!job || pendingWrite;
+    if (restore.disabled !== restoreDisabled) restore.disabled = restoreDisabled;
+    const label = job ? "取消增强" : "增强提示词";
+    if (caption.textContent !== label) caption.textContent = label;
+    if (main.classList.contains("axpe-loading") !== !!job)
+      main.classList.toggle("axpe-loading", !!job);
+    const busy = String(!!job);
+    if (main.getAttribute("aria-busy") !== busy) main.setAttribute("aria-busy", busy);
     const disabled = String(
       !job &&
         (!writable(editor) || pendingWrite ||
-          (configured() && (!editor || !text(editor).trim() || composing))),
+          (configured() && (!editor || !currentText.trim() || composing))),
     );
     if (
       main.getAttribute("aria-disabled") !== disabled ||
@@ -997,8 +1017,9 @@ Do not reproduce history unless needed to clarify the draft.`
       !triggerVisible()
     )
       hideTooltip();
-    main.setAttribute("aria-disabled", disabled);
-    position();
+    if (main.getAttribute("aria-disabled") !== disabled)
+      main.setAttribute("aria-disabled", disabled);
+    schedulePosition();
   }
   function lockEditor(node, container) {
     const editable = node.getAttribute("contenteditable"),
@@ -1401,6 +1422,14 @@ Do not reproduce history unless needed to clarify the draft.`
     panel.style.left = `${Math.max(gap, Math.min(rect.left, innerWidth - width - gap))}px`;
     panel.style.top = `${Math.max(gap, Math.min(rect.top - height - gap, innerHeight - height - gap))}px`;
   }
+  let positionFrame = 0;
+  function schedulePosition() {
+    if (disposed || composing || (tooltip.hidden && !panel) || positionFrame) return;
+    positionFrame = requestAnimationFrame(() => {
+      positionFrame = 0;
+      if (!disposed && !composing) position();
+    });
+  }
   function openSettings() {
     openPanel("增强提示词");
     const intro = make(
@@ -1595,7 +1624,7 @@ Do not reproduce history unless needed to clarify the draft.`
 @media(prefers-color-scheme:dark){.axpe-bar,.axpe-panel,.axpe-notice,.axpe-tooltip{--axpe-bg:var(--codex-plus-bg-elevated,#242424);--axpe-fg:var(--codex-plus-text,#eee);--axpe-line:var(--codex-plus-border,#444)}}
 .dark .axpe-bar,.dark .axpe-panel,.dark .axpe-notice,.dark .axpe-tooltip{--axpe-bg:var(--codex-plus-bg-elevated,#242424);--axpe-fg:var(--codex-plus-text,#eee);--axpe-line:var(--codex-plus-border,#444)}
 .light .axpe-bar,.light .axpe-panel,.light .axpe-notice,.light .axpe-tooltip{--axpe-bg:var(--codex-plus-bg-elevated,#fff);--axpe-fg:var(--codex-plus-text,#242424);--axpe-line:var(--codex-plus-border,#ddd)}
-.axpe-bar{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;max-width:100%}.axpe-bar[hidden],.axpe-bar [hidden],.axpe-notice[hidden],.axpe-tooltip[hidden]{display:none!important}
+.axpe-bar{display:inline-flex;align-items:center;gap:3px;flex:0 0 auto;max-width:100%}.axpe-bar[data-axpe-empty="true"]{visibility:hidden;pointer-events:none}.axpe-bar [hidden],.axpe-notice[hidden],.axpe-tooltip[hidden]{display:none!important}
 .axpe-bar button,.axpe-panel button{font:inherit;color:inherit;cursor:pointer;border:1px solid transparent;border-radius:8px;background:transparent;padding:5px 7px;white-space:nowrap;display:inline-flex;gap:5px;align-items:center;justify-content:center}
 .axpe-bar button:hover,.axpe-panel button:hover{background:color-mix(in srgb,currentColor 8%,transparent);border-color:var(--axpe-line)}
 .axpe-bar button:active,.axpe-panel button:active{transform:translateY(1px)}.axpe-bar button[aria-disabled="true"]{opacity:.4;cursor:default}.axpe-bar button:focus-visible,.axpe-panel :focus-visible{outline:2px solid #7199b3;outline-offset:2px}
@@ -1639,7 +1668,9 @@ Do not reproduce history unless needed to clarify the draft.`
   function ensure() {
     if (disposed) return;
     timer = 0;
-    if (pendingWrite) return;
+    // 宿主替换编辑器时旧节点可能不再发送 compositionend。
+    if (composing && !editor?.isConnected) composing = false;
+    if (pendingWrite || composing) return;
     const found = locate(),
       key = session();
     if (key !== activeSession) {
@@ -1691,11 +1722,14 @@ Do not reproduce history unless needed to clarify the draft.`
   }
   function affectsComposer(record) {
     if (own(record.target)) return false;
-    if (record.type === "attributes")
-      return (
-        !["style", "class"].includes(record.attributeName) ||
-        !!shell?.contains(record.target)
-      );
+    if (record.type === "attributes") {
+      if (["data-thread-id", "data-app-action-sidebar-thread-active", "aria-current", "aria-selected"].includes(record.attributeName)) {
+        discoveryNeeded = true;
+        return true;
+      }
+      return !editor?.isConnected || record.target === editor || record.target === shell ||
+        !!shell?.contains(record.target) || !!record.target.contains?.(editor);
+    }
     if (record.type === "characterData")
       return !!shell?.contains(record.target);
     const nodes = [...record.addedNodes, ...record.removedNodes];
@@ -1719,7 +1753,7 @@ Do not reproduce history unless needed to clarify the draft.`
         (r) => !own(r.target) || r.target === main || r.target === host,
       )
     )
-      positionTooltip();
+      schedulePosition();
     if (!main.isConnected && !disposed) {
       hideTooltip();
       schedule();
@@ -1762,6 +1796,11 @@ Do not reproduce history unless needed to clarify the draft.`
         (event.target === editor || editor.contains(event.target)) &&
         !writing
       ) {
+        if (composing || event.isComposing) {
+          version++;
+          drafts.delete(session());
+          return;
+        }
         // 写入期间的宿主异步通知不等同于用户编辑；锁定时以最终内容和附件快照验证。
         if (
           pendingWrite &&
@@ -1797,9 +1836,13 @@ Do not reproduce history unless needed to clarify the draft.`
   listen(
     document,
     "compositionend",
-    () => {
+    (event) => {
+      if (event.target !== editor) return;
       composing = false;
+      lastText = text(editor);
+      lastStructure = editor?.innerHTML || "";
       update();
+      schedule();
     },
     true,
   );
@@ -1816,10 +1859,10 @@ Do not reproduce history unless needed to clarify the draft.`
   });
   listen(window, "blur", hideTooltip);
   listen(window, "resize", () => {
-    position();
+    schedulePosition();
     schedule();
   });
-  listen(document, "scroll", position, true);
+  listen(document, "scroll", schedulePosition, true);
   listen(
     document,
     "pointerdown",
@@ -1857,6 +1900,8 @@ Do not reproduce history unless needed to clarify the draft.`
     clearTimeout(testJob?.timer);
     clearTimeout(timer);
     clearTimeout(noticeTimer);
+    cancelAnimationFrame(positionFrame);
+    positionFrame = 0;
     observer.disconnect();
     resizeObserver.disconnect();
     [...paintWaits.values()].forEach((finish) => finish());
@@ -1888,7 +1933,7 @@ Do not reproduce history unless needed to clarify the draft.`
       editor: box(editor),
       shell: box(shell),
       button: box(main),
-      hidden: host.hidden,
+      hidden: host.dataset.axpeEmpty === "true",
       pendingWrite,
       composing,
       editors: [...document.querySelectorAll(EDITORS)].filter((node) => !own(node)).map((node) => ({
