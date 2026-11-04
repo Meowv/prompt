@@ -372,7 +372,7 @@ test("对话上下文：完整脚本配置、采集与请求保护", async (t) =
         );
         try {
           const history = await collect(page);
-          assert.equal(history[1].text, "answerquoted instructions");
+          assert.equal(history[1].text, "answer\nquoted instructions");
           assert.doesNotMatch(
             JSON.stringify(history),
             /REASONING|TOOL|ATTACHMENT|PLUGIN/,
@@ -398,6 +398,12 @@ test("对话上下文：完整脚本配置、采集与请求保护", async (t) =
         "无操作区",
         fixture(turn("1", "question", "answer").replace(actions, "")),
       ],
+      ...["hidden", "inert"].map((attribute) => [
+        `${attribute} 操作区不作为已完成证据`,
+        fixture(turn("1", "question", "answer").replace(
+          actions, `<div ${attribute}>${actions}</div>`,
+        )),
+      ]),
       [
         "只有代码块复制",
         fixture(

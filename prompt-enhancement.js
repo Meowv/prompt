@@ -753,6 +753,7 @@ Do not reproduce history unless needed to clarify the draft.`
     if (unsafe(node) || !node.isConnected || composing || pendingWrite)
       return { status: "blocked" };
     const original = text(node),
+      structure = node.innerHTML,
       key = session(),
       container = shell,
       rev = version;
@@ -763,10 +764,19 @@ Do not reproduce history unless needed to clarify the draft.`
     writeContext = context;
     update();
     let attempted = false;
+    // focus/select 可同步触发宿主切换会话或改写草稿，必须在实际写入前重新校验。
+    const unchanged = () =>
+      !disposed && !composing && node.isConnected && writable(node) &&
+      editor === node && shell === container && container.contains(node) &&
+      key === session() && version === rev &&
+      text(node) === original && node.innerHTML === structure && !unsafe(node) &&
+      attachmentState(container) === attachments;
     try {
       node.focus({ preventScroll: true });
+      if (!unchanged()) return { status: "blocked" };
       if (node.tagName === "TEXTAREA") {
         node.select();
+        if (!unchanged()) return { status: "blocked" };
         attempted = true;
         if (!document.execCommand("insertText", false, value)) {
           Object.getOwnPropertyDescriptor(
@@ -780,6 +790,7 @@ Do not reproduce history unless needed to clarify the draft.`
         const selection = window.getSelection();
         selection.removeAllRanges();
         selection.addRange(range);
+        if (!unchanged()) return { status: "blocked" };
         // 保持选区限定在当前编辑器；命令返回值不能代替实际内容校验。
         attempted = true;
         const accepted = document.execCommand("insertText", false, value);
@@ -1174,14 +1185,45 @@ Do not reproduce history unless needed to clarify the draft.`
     return null;
   }
   const contextExcluded =
-    "[data-codex-plus-ext],[data-axpe],button,[role='button'],svg,h4.sr-only,[data-message-type='reasoning'],[data-testid*='reasoning'],[data-testid*='tool'],[data-tool-call-id],[data-testid*='attachment'],[data-type='attachment'],details";
+    "[data-codex-plus-ext],[data-axpe],[hidden],[inert],script,style,button,[role='button'],svg,h4.sr-only,[data-message-type='reasoning'],[data-testid*='reasoning'],[data-testid*='tool'],[data-tool-call-id],[data-testid*='attachment'],[data-type='attachment'],details";
+  function contextText(message) {
+    const clone = message.cloneNode(true);
+    clone.querySelectorAll(contextExcluded).forEach((item) => item.remove());
+    const parts = [];
+    const boundary = () => {
+      if (parts.length && !parts.at(-1).endsWith("\n")) parts.push("\n");
+    };
+    const visit = (node) => {
+      if (node.nodeType === 3) {
+        if (node.nodeValue) parts.push(node.nodeValue);
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      if (node.tagName === "BR") {
+        parts.push("\n");
+        return;
+      }
+      const block = /^(P|DIV|SECTION|ARTICLE|BLOCKQUOTE|PRE|UL|OL|LI|H[1-6]|TR)$/.test(
+        node.tagName,
+      );
+      if (block) boundary();
+      for (const child of node.childNodes) visit(child);
+      if (block) boundary();
+      else if (
+        /^(TD|TH)$/.test(node.tagName) &&
+        node.nextElementSibling?.matches("td,th")
+      ) parts.push("\t");
+    };
+    visit(clone);
+    return norm(parts.join("")).trim();
+  }
   function hasCompletedContextActions(message) {
     const actions = [
       ...message.querySelectorAll("button,[role='button']"),
     ].filter(
       (el) =>
         !el.closest(
-          "pre,code,[data-codex-plus-ext],[data-message-type='reasoning'],[data-testid*='reasoning'],[data-testid*='tool']",
+          "pre,code,[hidden],[inert],[data-codex-plus-ext],[data-message-type='reasoning'],[data-testid*='reasoning'],[data-testid*='tool']",
         ),
     );
     const label = (el) =>
@@ -1222,7 +1264,7 @@ Do not reproduce history unless needed to clarify the draft.`
             ...turn.querySelectorAll(
               `[data-conversation-role="${role}"],[data-message-author-role="${role}"]`,
             ),
-          ].filter((el) => !el.closest("[data-codex-plus-ext]"));
+          ].filter((el) => !el.closest("[data-codex-plus-ext],[hidden],[inert]"));
           const nodes = [
             ...new Set(
               markers.map((marker) =>
@@ -1246,15 +1288,8 @@ Do not reproduce history unless needed to clarify the draft.`
         const streaming =
           "[aria-busy='true'],[data-is-streaming='true'],[data-streaming='true'],[data-message-status='in_progress'],[data-status='streaming']";
         if (turn.matches(streaming) || turn.querySelector(streaming)) continue;
-        const body = (el) => {
-          const clone = el.cloneNode(true);
-          clone
-            .querySelectorAll(contextExcluded)
-            .forEach((item) => item.remove());
-          return norm(clone.textContent).trim();
-        };
-        const userText = body(user),
-          assistantText = body(assistant);
+        const userText = contextText(user),
+          assistantText = contextText(assistant);
         if (!userText || !assistantText) return null;
         for (const character of userText + assistantText) {
           if (++characters > 6000) return null;
