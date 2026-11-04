@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         增强提示词
 // @namespace    prompt-enhancement
-// @version      1.0.1
+// @version      1.0.2
 // @description  在发送前智能优化 Codex 输入框中的提示词
 // @author:      Meowv
 // ==/UserScript==
@@ -131,7 +131,9 @@ GOOD OUTPUT EXAMPLE:
       apiKey: typeof input.apiKey === "string" ? input.apiKey.trim() : "",
       model: typeof input.model === "string" ? input.model.trim() : "",
       includeRecentContext: input.includeRecentContext === true,
-      recentContextCount: [1, 2, 3, 4].includes(input.recentContextCount) ? input.recentContextCount : 1,
+      recentContextCount: [1, 2, 3, 4].includes(input.recentContextCount)
+        ? input.recentContextCount
+        : 1,
     };
   }
   const configured = () => !!(config.baseUrl && config.apiKey && config.model);
@@ -436,7 +438,12 @@ GOOD OUTPUT EXAMPLE:
   async function request(c, input, signal, testing = false, history = null) {
     validate(c);
     const anthropic = c.protocol === "anthropic";
-    const withContext = !testing && Array.isArray(history) && history.length >= 2 && history.length <= 8 && history.length % 2 === 0;
+    const withContext =
+      !testing &&
+      Array.isArray(history) &&
+      history.length >= 2 &&
+      history.length <= 8 &&
+      history.length % 2 === 0;
     const system = testing
       ? "Return only OK."
       : SYSTEM_PROMPT +
@@ -581,7 +588,8 @@ Do not reproduce history unless needed to clarify the draft.`
     if (
       !container ||
       container === document.body ||
-      (!retained && container.getBoundingClientRect().height > innerHeight * 0.75)
+      (!retained &&
+        container.getBoundingClientRect().height > innerHeight * 0.75)
     )
       return null;
     // 已明确识别的 Composer 不依赖发送按钮；运行期间可能只有停止或排队控件。
@@ -766,10 +774,18 @@ Do not reproduce history unless needed to clarify the draft.`
     let attempted = false;
     // focus/select 可同步触发宿主切换会话或改写草稿，必须在实际写入前重新校验。
     const unchanged = () =>
-      !disposed && !composing && node.isConnected && writable(node) &&
-      editor === node && shell === container && container.contains(node) &&
-      key === session() && version === rev &&
-      text(node) === original && node.innerHTML === structure && !unsafe(node) &&
+      !disposed &&
+      !composing &&
+      node.isConnected &&
+      writable(node) &&
+      editor === node &&
+      shell === container &&
+      container.contains(node) &&
+      key === session() &&
+      version === rev &&
+      text(node) === original &&
+      node.innerHTML === structure &&
+      !unsafe(node) &&
       attachmentState(container) === attachments;
     try {
       node.focus({ preventScroll: true });
@@ -1010,16 +1026,19 @@ Do not reproduce history unless needed to clarify the draft.`
     );
     if (restore.hidden !== !canRestore) restore.hidden = !canRestore;
     const restoreDisabled = !!job || pendingWrite;
-    if (restore.disabled !== restoreDisabled) restore.disabled = restoreDisabled;
+    if (restore.disabled !== restoreDisabled)
+      restore.disabled = restoreDisabled;
     const label = job ? "取消增强" : "增强提示词";
     if (caption.textContent !== label) caption.textContent = label;
     if (main.classList.contains("axpe-loading") !== !!job)
       main.classList.toggle("axpe-loading", !!job);
     const busy = String(!!job);
-    if (main.getAttribute("aria-busy") !== busy) main.setAttribute("aria-busy", busy);
+    if (main.getAttribute("aria-busy") !== busy)
+      main.setAttribute("aria-busy", busy);
     const disabled = String(
       !job &&
-        (!writable(editor) || pendingWrite ||
+        (!writable(editor) ||
+          pendingWrite ||
           (configured() && (!editor || !currentText.trim() || composing))),
     );
     if (
@@ -1203,16 +1222,18 @@ Do not reproduce history unless needed to clarify the draft.`
         parts.push("\n");
         return;
       }
-      const block = /^(P|DIV|SECTION|ARTICLE|BLOCKQUOTE|PRE|UL|OL|LI|H[1-6]|TR)$/.test(
-        node.tagName,
-      );
+      const block =
+        /^(P|DIV|SECTION|ARTICLE|BLOCKQUOTE|PRE|UL|OL|LI|H[1-6]|TR)$/.test(
+          node.tagName,
+        );
       if (block) boundary();
       for (const child of node.childNodes) visit(child);
       if (block) boundary();
       else if (
         /^(TD|TH)$/.test(node.tagName) &&
         node.nextElementSibling?.matches("td,th")
-      ) parts.push("\t");
+      )
+        parts.push("\t");
     };
     visit(clone);
     return norm(parts.join("")).trim();
@@ -1244,7 +1265,11 @@ Do not reproduce history unless needed to clarify the draft.`
       )
     );
   }
-  function collectRecentContext(node, container, count = config.recentContextCount) {
+  function collectRecentContext(
+    node,
+    container,
+    count = config.recentContextCount,
+  ) {
     try {
       const origin = recentContextOrigin(node, container);
       if (!origin) return null;
@@ -1264,7 +1289,9 @@ Do not reproduce history unless needed to clarify the draft.`
             ...turn.querySelectorAll(
               `[data-conversation-role="${role}"],[data-message-author-role="${role}"]`,
             ),
-          ].filter((el) => !el.closest("[data-codex-plus-ext],[hidden],[inert]"));
+          ].filter(
+            (el) => !el.closest("[data-codex-plus-ext],[hidden],[inert]"),
+          );
           const nodes = [
             ...new Set(
               markers.map((marker) =>
@@ -1294,7 +1321,10 @@ Do not reproduce history unless needed to clarify the draft.`
         for (const character of userText + assistantText) {
           if (++characters > 6000) return null;
         }
-        history.unshift({ role: "user", text: userText }, { role: "assistant", text: assistantText });
+        history.unshift(
+          { role: "user", text: userText },
+          { role: "assistant", text: assistantText },
+        );
         if (history.length >= limit * 2) break;
       }
       return history.length ? { ...origin, history } : null;
@@ -1332,7 +1362,9 @@ Do not reproduce history unless needed to clarify the draft.`
       structure = node.innerHTML,
       attachmentSnapshot = attachmentState(container);
     const contextEnabled = config.includeRecentContext === true;
-    const context = contextEnabled ? collectRecentContext(node, container) : null;
+    const context = contextEnabled
+      ? collectRecentContext(node, container)
+      : null;
     const contextNotice = contextEnabled && !context ? "（未附带上文）" : "";
     const current = startJob();
     job = current;
@@ -1343,7 +1375,13 @@ Do not reproduce history unless needed to clarify the draft.`
     update();
     say("正在增强，当前输入框暂时只读，可点击取消" + contextNotice, 0);
     try {
-      const output = await request(config, original, current.controller.signal, false, context?.history);
+      const output = await request(
+        config,
+        original,
+        current.controller.signal,
+        false,
+        context?.history,
+      );
       clearTimeout(current.timer);
       if (disposed || current.controller.signal.aborted || job !== current)
         return;
@@ -1459,7 +1497,8 @@ Do not reproduce history unless needed to clarify the draft.`
   }
   let positionFrame = 0;
   function schedulePosition() {
-    if (disposed || composing || (tooltip.hidden && !panel) || positionFrame) return;
+    if (disposed || composing || (tooltip.hidden && !panel) || positionFrame)
+      return;
     positionFrame = requestAnimationFrame(() => {
       positionFrame = 0;
       if (!disposed && !composing) position();
@@ -1562,20 +1601,30 @@ Do not reproduce history unless needed to clarify the draft.`
     contextToggle.className = "axpe-context-switch";
     contextToggle.setAttribute("role", "switch");
     contextToggle.setAttribute("aria-label", "附带对话上下文");
-    contextToggle.setAttribute("aria-checked", String(config.includeRecentContext === true));
+    contextToggle.setAttribute(
+      "aria-checked",
+      String(config.includeRecentContext === true),
+    );
     const knob = make("span");
     knob.setAttribute("aria-hidden", "true");
     contextToggle.append(knob);
     const contextHelp = make("div", "", "axpe-context-help");
     const contextInfo = button("ⓘ", () => {});
     contextInfo.setAttribute("aria-label", "上文发送说明");
-    const contextDescription = make("span", "帮助增强模型理解“继续”“按刚才方案”等依赖上文的表达，提高结果相关性。1 条是一轮问答，最多 4 条。所选上文会随草稿发送至配置的模型服务；仅使用当前页面已加载的内容，总计超出 6000 字符时本次不附带上文。");
+    const contextDescription = make(
+      "span",
+      "帮助增强模型理解“继续”“按刚才方案”等依赖上文的表达，提高结果相关性。1 条是一轮问答，最多 4 条。所选上文会随草稿发送至配置的模型服务；仅使用当前页面已加载的内容，总计超出 6000 字符时本次不附带上文。",
+    );
     contextDescription.id = "axpe-context-description";
     contextDescription.setAttribute("role", "tooltip");
     contextDescription.hidden = true;
     contextInfo.setAttribute("aria-describedby", contextDescription.id);
-    const showContextHelp = () => { contextDescription.hidden = false; };
-    const hideContextHelp = () => { contextDescription.hidden = true; };
+    const showContextHelp = () => {
+      contextDescription.hidden = false;
+    };
+    const hideContextHelp = () => {
+      contextDescription.hidden = true;
+    };
     contextHelp.addEventListener("mouseenter", showContextHelp);
     contextHelp.addEventListener("mouseleave", hideContextHelp);
     contextInfo.addEventListener("focus", showContextHelp);
@@ -1607,7 +1656,8 @@ Do not reproduce history unless needed to clarify the draft.`
         baseUrl: fields.baseUrl.value.trim(),
         apiKey: key.value.trim(),
         model: fields.model.value.trim(),
-        includeRecentContext: contextToggle.getAttribute("aria-checked") === "true",
+        includeRecentContext:
+          contextToggle.getAttribute("aria-checked") === "true",
         recentContextCount: Number(contextCount.value),
       });
     const footer = make("footer");
@@ -1766,12 +1816,24 @@ Do not reproduce history unless needed to clarify the draft.`
   function affectsComposer(record) {
     if (own(record.target)) return false;
     if (record.type === "attributes") {
-      if (["data-thread-id", "data-app-action-sidebar-thread-active", "aria-current", "aria-selected"].includes(record.attributeName)) {
+      if (
+        [
+          "data-thread-id",
+          "data-app-action-sidebar-thread-active",
+          "aria-current",
+          "aria-selected",
+        ].includes(record.attributeName)
+      ) {
         discoveryNeeded = true;
         return true;
       }
-      return !editor?.isConnected || record.target === editor || record.target === shell ||
-        !!shell?.contains(record.target) || !!record.target.contains?.(editor);
+      return (
+        !editor?.isConnected ||
+        record.target === editor ||
+        record.target === shell ||
+        !!shell?.contains(record.target) ||
+        !!record.target.contains?.(editor)
+      );
     }
     if (record.type === "characterData")
       return !!shell?.contains(record.target);
@@ -1971,26 +2033,34 @@ Do not reproduce history unless needed to clarify the draft.`
       };
     };
     // 仅报告结构和状态，不包含草稿正文、会话标识或 API 配置。
-    return JSON.stringify({
-      version: "1.0.1",
-      editor: box(editor),
-      shell: box(shell),
-      button: box(main),
-      hidden: host.dataset.axpeEmpty === "true",
-      pendingWrite,
-      composing,
-      editors: [...document.querySelectorAll(EDITORS)].filter((node) => !own(node)).map((node) => ({
-        tag: node.tagName,
-        className: node.className,
-        editable: node.getAttribute("contenteditable"),
-        disabled: !!node.disabled,
-        readOnly: !!node.readOnly,
-        textLength: text(node).trim().length,
-        accepted: !!candidate(node),
-        excluded: !!node.closest('aside, nav, [role="dialog"], [role="search"], [data-sidebar], [inert]'),
-        box: box(node),
-      })),
-    }, null, 2);
+    return JSON.stringify(
+      {
+        version: "1.0.1",
+        editor: box(editor),
+        shell: box(shell),
+        button: box(main),
+        hidden: host.dataset.axpeEmpty === "true",
+        pendingWrite,
+        composing,
+        editors: [...document.querySelectorAll(EDITORS)]
+          .filter((node) => !own(node))
+          .map((node) => ({
+            tag: node.tagName,
+            className: node.className,
+            editable: node.getAttribute("contenteditable"),
+            disabled: !!node.disabled,
+            readOnly: !!node.readOnly,
+            textLength: text(node).trim().length,
+            accepted: !!candidate(node),
+            excluded: !!node.closest(
+              'aside, nav, [role="dialog"], [role="search"], [data-sidebar], [inert]',
+            ),
+            box: box(node),
+          })),
+      },
+      null,
+      2,
+    );
   }
   window[NS] = { destroy, ensure, inspect, drafts, version: "1.0.1" };
   window.codexPlus?.onCleanup?.(destroy);
