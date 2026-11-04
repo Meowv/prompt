@@ -73,7 +73,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Meowv/prompt/main/prom
 
 1. 打开 Codex++ 的用户脚本管理页面，刷新本地脚本列表，确认用户脚本功能及 `prompt-enhancement.js` 已启用。
 2. 执行「重新加载用户脚本」，或重新启动 Codex++ / Codex Desktop。
-3. 打开可输入消息的 Codex 对话，输入文字后确认输入框底部出现「增强提示词」按钮。空白草稿时隐藏；上一轮对话仍在执行时也可使用。
+3. 打开可输入消息的 Codex 对话，输入文字后确认输入框底部出现「增强提示词」按钮。空白草稿时按钮不可见、不可聚焦，但保留底栏占位，避免输入首字或删除最后一字时布局跳动；上一轮对话仍在执行时也可使用。
 
 更新时可再次运行对应的安装命令覆盖脚本，再重新加载用户脚本。若已下载仓库，也可将其中的 `prompt-enhancement.js` 复制到用户脚本目录。
 
@@ -100,6 +100,12 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Meowv/prompt/main/prom
 4. 如果增强结果尚未修改，可点击「还原」恢复原稿。遇到不适合自动回填或无法确认写入的情况，按预览提示检查并复制结果。
 
 脚本使用内置增强规则，不需要选择优化风格。模型输出及自动检查均不能保证语义正确，尤其应核对代码、文件路径和新增约束。
+
+## 开发验证
+
+单元回归：`node --test tests/*.test.cjs`。
+
+完整脚本浏览器回归：准备 Playwright 与 Chromium 后运行 `node --test tests/*.browser.cjs`；也可用环境变量 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定兼容的 Chromium。用例使用合成页面与草稿，不访问真实会话或模型 API。性能断言检查 DOM 写入、布局位移与组合输入期间的文本读取，不以耗时阈值判断通过。
 
 ## 隐私与限制
 

@@ -125,6 +125,7 @@ test("已绑定编辑器输入后仍重新检查按钮挂载", () => {
     editor: node,
     host: { isConnected: true },
     pendingWrite: false,
+    composing: false,
     hideTooltip() {},
     version: 0,
     drafts: new Map(),
@@ -140,6 +141,7 @@ test("输入区内部显隐样式变化会触发检查，外部流式内容样�
   const inside = {};
   const context = vm.createContext({
     own: () => false,
+    editor: { isConnected: true },
     shell: { contains: (node) => node === inside },
   });
   vm.runInContext(
