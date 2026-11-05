@@ -98,7 +98,7 @@ test("完整脚本：草稿控制显隐，运行状态和布局裁剪不影响�
         });
       }
     });
-    await t.test("恢复底栏原位，底栏重建后仍返回原位，版本为 1.0.1", async () => {
+    await t.test("恢复底栏原位，底栏重建后仍返回原位，版本为 1.0.2", async () => {
       const inlinePage = await browser.newPage();
       try {
         await inlinePage.setContent(fixture);
@@ -112,7 +112,8 @@ test("完整脚本：草稿控制显隐，运行状态和布局裁剪不影响�
         const button = inlinePage.getByRole("button", { name: "增强提示词", exact: true });
         assert.equal(await button.evaluate((el) => el.closest(".axpe-bar").parentElement.className), "composer-footer");
         assert.equal(await button.evaluate((el) => getComputedStyle(el.closest(".axpe-bar")).position), "static");
-        assert.equal(await inlinePage.evaluate(() => window.__axPromptEnhancerV1.version), "1.0.1");
+        assert.equal(await inlinePage.evaluate(() => window.__axPromptEnhancerV1.version), "1.0.2");
+        assert.equal(await inlinePage.evaluate(() => JSON.parse(window.__axPromptEnhancerV1.inspect()).version), "1.0.2");
         await button.click({ trial: true });
         await inlinePage.locator(".composer-footer").evaluate((el) => { el.hidden = true; });
         await inlinePage.waitForTimeout(250);
